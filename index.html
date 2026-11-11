@@ -1,0 +1,999 @@
+<!doctype html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Book Scanner</title>
+<style>
+:root{--bg:#0f1115;--panel:#181b22;--panel2:#20242d;--line:#2c3240;--txt:#e6e8ee;--mut:#99a2b2;--acc:#4f8cff;--ok:#38c172;--warn:#f0a020;--bad:#ef5350}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--txt);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--panel)}
+header h1{font-size:16px;margin:0;font-weight:650}
+header .sp{flex:1}
+.wrap{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:12px;padding:12px;align-items:start}
+@media (max-width:900px){.wrap{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px}
+.cam{position:sticky;top:8px}
+@media (max-width:900px){.cam{position:static}}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+.row.tight{margin:4px 0}
+button,select,input[type=text],input[type=number]{font:inherit;color:var(--txt);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 10px}
+button{cursor:pointer}
+button:hover{border-color:#43506a}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:650}
+button.big{padding:14px 18px;font-size:16px;flex:1;min-width:140px}
+button.on{background:#27406e;border-color:var(--acc)}
+button.danger{color:#ff8a87}
+button:disabled{opacity:.45;cursor:not-allowed}
+input[type=number]{width:84px}
+input[type=text]{min-width:0}
+label{display:inline-flex;gap:6px;align-items:center;color:var(--mut)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:var(--panel2)}
+.seg button.on{background:var(--acc);color:#fff}
+.stage{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:10px;overflow:hidden}
+.stage video,.stage canvas{position:absolute;inset:0;width:100%;height:100%}
+.stage video{object-fit:fill}
+.stage.flash::after{content:"";position:absolute;inset:0;background:#fff;opacity:.55;pointer-events:none}
+#pill{position:absolute;left:8px;top:8px;z-index:3;padding:4px 10px;border-radius:99px;background:rgba(0,0,0,.65);font-size:12px;font-weight:600;border:1px solid #444}
+#pill.moving{border-color:var(--warn);color:var(--warn)}
+#pill.stable{border-color:var(--ok);color:var(--ok)}
+#pill.hand{border-color:var(--bad);color:var(--bad)}
+#pill.busy{border-color:var(--acc);color:var(--acc)}
+.metrics{font:12px ui-monospace,Consolas,monospace;color:var(--mut);min-height:18px}
+details{margin-top:8px;border-top:1px solid var(--line);padding-top:8px}
+summary{cursor:pointer;color:var(--mut)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px 14px;margin-top:8px}
+.grid2 label{justify-content:space-between}
+.grid2 input[type=range]{width:110px}
+.grid2 output{min-width:34px;text-align:right;color:var(--txt)}
+.hint{color:var(--mut);font-size:12px}
+.banner{background:#3b2f10;border:1px solid var(--warn);color:#ffd48a;padding:6px 10px;border-radius:8px;margin:6px 0;display:none}
+.stats{color:var(--mut)}
+.bar{height:5px;background:var(--panel2);border-radius:3px;overflow:hidden;margin:6px 0}
+.bar i{display:block;height:100%;width:0;background:var(--acc);transition:width .15s}
+#list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.card{display:grid;grid-template-columns:96px 1fr;gap:8px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px}
+.card .th{display:flex;align-items:flex-start}
+.card .th img{width:100%;border-radius:6px;cursor:zoom-in;background:#000}
+.card .hd{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+.card .hd .sp{flex:1}
+.card .pn{width:70px;padding:4px 6px}
+.card textarea{width:100%;min-height:96px;resize:vertical;background:#12151b;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px;font:14px/1.5 system-ui,"Noto Naskh Arabic","Segoe UI",sans-serif}
+.ib{padding:3px 8px}
+.bg{font-size:11px;padding:1px 7px;border-radius:99px;border:1px solid var(--line);color:var(--mut)}
+.bg.ok{color:var(--ok);border-color:var(--ok)}
+.bg.bad{color:var(--bad);border-color:var(--bad)}
+.bg.warn{color:var(--warn);border-color:var(--warn)}
+.bg.acc{color:var(--acc);border-color:var(--acc)}
+#toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#000c;border:1px solid var(--line);padding:8px 14px;border-radius:10px;z-index:50;display:none;max-width:90vw}
+#viewer{position:fixed;inset:0;background:#000d;z-index:40;display:none;align-items:center;justify-content:center;padding:10px}
+#viewer img{max-width:100%;max-height:100%;border-radius:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>📖 Book Scanner</h1>
+  <label>Buku <input id="book" type="text" list="books" style="width:150px"></label>
+  <datalist id="books"></datalist>
+  <span class="sp"></span>
+  <span class="stats" id="stats"></span>
+</header>
+
+<div class="wrap">
+  <!-- KAMERA -->
+  <section class="panel cam">
+    <div class="row tight">
+      <select id="camSel" style="flex:1;min-width:140px"><option value="">Kamera lalai</option></select>
+      <button id="btnCam" class="pri">Mula kamera</button>
+      <button id="btnLock" title="Kunci fokus & exposure supaya tak 'hunting'">🔒 Kunci fokus</button>
+    </div>
+
+    <div class="stage" id="stage">
+      <video id="video" playsinline muted autoplay></video>
+      <canvas id="ov"></canvas>
+      <div id="pill">Kamera belum dimulakan</div>
+    </div>
+    <div class="metrics" id="metrics"></div>
+    <div class="banner" id="banner"></div>
+
+    <div class="row">
+      <div class="seg" id="modeSeg">
+        <button data-mode="manual">Manual</button>
+        <button data-mode="auto">Auto</button>
+      </div>
+      <button id="btnSnap" class="pri big">📸 Snap (Space)</button>
+    </div>
+
+    <div class="row">
+      <button id="btnRoi">✎ Tetapkan ROI</button>
+      <span id="slotWrap" class="seg" style="display:none">
+        <button data-slot="0">Kiri</button>
+        <button data-slot="1">Kanan</button>
+      </span>
+      <label>Muka surat
+        <select data-k="roiMode" id="roiMode">
+          <option value="single">Satu</option>
+          <option value="dual">Dua (kiri+kanan)</option>
+        </select>
+      </label>
+      <label><input type="checkbox" data-k="rtl"> Buku Arab (kanan→kiri)</label>
+    </div>
+
+    <div class="row">
+      <label>Halaman seterusnya <input type="number" data-k="nextPage" id="nextPage" min="0"></label>
+      <button id="btnUndo" title="Padam snap terakhir (U)">↶ Buang snap terakhir</button>
+    </div>
+
+    <details>
+      <summary>Tetapan auto-snap & kamera</summary>
+      <div class="grid2">
+        <label>Tempoh stabil (ms) <input type="range" data-k="stableMs" min="300" max="2000" step="50"><output></output></label>
+        <label>Ambang gerakan <input type="range" data-k="motionThr" min="1" max="15" step="0.5"><output></output></label>
+        <label>Ambang beza halaman <input type="range" data-k="changeThr" min="1" max="30" step="0.5"><output></output></label>
+        <label><input type="checkbox" data-k="skin"> Tunggu tangan keluar (kesan kulit)</label>
+        <label>Burst (pilih paling tajam)
+          <select data-k="burst" data-num="1"><option value="1">1</option><option value="3">3</option><option value="5">5</option></select>
+        </label>
+        <label>Pusing imej
+          <select data-k="rotate" data-num="1"><option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select>
+        </label>
+        <label><input type="checkbox" data-k="sound"> Bunyi bila snap</label>
+        <label>Resolusi kamera
+          <select data-k="camRes"><option value="1080">1080p</option><option value="4k">4K (tajam, lebih berat)</option></select>
+        </label>
+      </div>
+      <p class="hint">Baca nilai <b>gerak</b> dan <b>beza</b> di bawah video. Masa halaman senyap, gerak patut &lt; ambang. Lepas selak, beza patut &gt; ambang beza halaman. Laras ikut cahaya &amp; buku kau.</p>
+    </details>
+
+    <details>
+      <summary>Tetapan OCR</summary>
+      <div class="row" id="langRow">
+        <span class="hint">Bahasa:</span>
+        <label><input type="checkbox" name="lang" value="eng"> English</label>
+        <label><input type="checkbox" name="lang" value="msa"> Melayu</label>
+        <label><input type="checkbox" name="lang" value="ind"> Indonesia</label>
+        <label><input type="checkbox" name="lang" value="ara"> Arab</label>
+      </div>
+      <div class="grid2">
+        <label>Susun halaman
+          <select data-k="psm"><option value="3">Auto</option><option value="6">Satu blok</option><option value="4">Satu lajur</option></select>
+        </label>
+        <label>Preproses
+          <select data-k="pre"><option value="raw">Asal</option><option value="gray">Kelabu + kontras</option><option value="adapt">Adaptif (bayang/spine)</option></select>
+        </label>
+        <label>Skala OCR
+          <select data-k="scale" data-num="1"><option value="1">1×</option><option value="1.5">1.5×</option><option value="2">2×</option></select>
+        </label>
+        <label>Model
+          <select data-k="quality"><option value="fast">Laju (lalai)</option><option value="best">Terbaik (besar, ~15MB/bahasa)</option></select>
+        </label>
+        <label>Conf rendah &lt; <input type="number" data-k="minConf" min="10" max="99"></label>
+      </div>
+      <p class="hint">Campur banyak bahasa dalam satu pass menurunkan ketepatan. Kalau satu buku dominan Melayu + sedikit Arab, cuba <i>Melayu+Arab</i> sahaja. Arab Tesseract sederhana sahaja, terutama kalau ada baris (harakat). Tukar tetapan lepas tu guna "OCR semula".</p>
+    </details>
+  </section>
+
+  <!-- HASIL -->
+  <section class="panel">
+    <div class="row tight">
+      <button id="btnTxt" class="pri">⬇ TXT</button>
+      <button id="btnJson">⬇ JSON</button>
+      <button id="btnZip">⬇ Gambar (ZIP)</button>
+      <button id="btnCopy">Salin semua</button>
+    </div>
+    <div class="row tight">
+      <label><input type="checkbox" data-k="sepPages"> Penanda halaman</label>
+      <label><input type="checkbox" data-k="joinLines"> Gabung baris jadi perenggan</label>
+      <label><input type="checkbox" data-k="desc"> Terbaru di atas</label>
+    </div>
+    <div class="row tight">
+      <button id="btnReLow">OCR semula (conf rendah)</button>
+      <button id="btnReAll">OCR semula semua</button>
+      <button id="btnWipe" class="danger">Padam buku ini</button>
+    </div>
+    <div class="hint" id="ocrStatus">OCR: sedia</div>
+    <div class="bar"><i id="ocrBar"></i></div>
+    <div id="list"></div>
+  </section>
+</div>
+
+<div id="toast"></div>
+<div id="viewer"><img alt=""></div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
+<script>
+"use strict";
+/* ================= util & settings ================= */
+const $ = s => document.querySelector(s);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+const defaults = {
+  mode: 'manual', roiMode: 'single', R: [null, null], rtl: false,
+  book: 'buku-1', nextPage: 1,
+  camRes: '1080', stableMs: 700, motionThr: 3, changeThr: 5, burst: 3, skin: false, sound: true, rotate: 0,
+  langs: ['eng', 'msa', 'ara'], psm: '3', pre: 'gray', scale: 1, quality: 'fast', minConf: 70,
+  sepPages: true, joinLines: false, desc: true
+};
+let S = Object.assign({}, defaults);
+try { Object.assign(S, JSON.parse(localStorage.getItem('bookscan_settings') || '{}')); } catch (e) {}
+function save() { try { localStorage.setItem('bookscan_settings', JSON.stringify(S)); } catch (e) {} }
+
+let toastT;
+function toast(msg, kind) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  t.style.borderColor = kind === 'bad' ? 'var(--bad)' : kind === 'warn' ? 'var(--warn)' : 'var(--line)';
+  clearTimeout(toastT);
+  toastT = setTimeout(() => t.style.display = 'none', 3200);
+}
+
+/* ================= IndexedDB ================= */
+const DB = {
+  db: null,
+  open() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('webcam-book-scanner', 1);
+      r.onupgradeneeded = () => {
+        const s = r.result.createObjectStore('pages', { keyPath: 'id', autoIncrement: true });
+        s.createIndex('book', 'book');
+      };
+      r.onsuccess = () => { this.db = r.result; res(); };
+      r.onerror = () => rej(r.error);
+    });
+  },
+  st(mode) { return this.db.transaction('pages', mode).objectStore('pages'); },
+  rq(r) { return new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  add(rec) { return this.rq(this.st('readwrite').add(rec)); },
+  put(rec) { return this.rq(this.st('readwrite').put(rec)); },
+  del(id) { return this.rq(this.st('readwrite').delete(id)); },
+  byBook(b) { return this.rq(this.st('readonly').index('book').getAll(b)); },
+  books() { return this.rq(this.st('readonly').index('book').getAllKeys()).then(k => [...new Set(k)]); }
+};
+
+/* ================= state ================= */
+let pages = [];                 // rekod buku semasa
+const els = new Map();          // id -> element kad
+const byId = id => pages.find(p => p.id === id);
+let stream = null, streaming = false, wl = null;
+let editing = false, slot = 0;
+let replaceTarget = null;
+let busy = false;
+let uiState = 'idle';
+
+const video = $('#video'), stage = $('#stage'), ov = $('#ov'), octx = ov.getContext('2d');
+
+/* ================= tetapan UI ================= */
+function bindSettings() {
+  document.querySelectorAll('[data-k]').forEach(el => {
+    const k = el.dataset.k;
+    const isCb = el.type === 'checkbox';
+    const isNum = el.type === 'range' || el.type === 'number' || el.dataset.num !== undefined;
+    if (isCb) el.checked = !!S[k]; else el.value = S[k];
+    const out = el.parentElement.querySelector('output');
+    if (out) out.textContent = el.value;
+    const h = () => {
+      let v = isCb ? el.checked : (isNum ? parseFloat(el.value) : el.value);
+      if (isNum && isNaN(v)) return;
+      S[k] = v;
+      if (out) out.textContent = el.value;
+      save(); onSetting(k);
+    };
+    el.addEventListener('input', h);
+    el.addEventListener('change', h);
+  });
+  document.querySelectorAll('input[name=lang]').forEach(cb => {
+    cb.checked = S.langs.includes(cb.value);
+    cb.addEventListener('change', () => {
+      S.langs = [...document.querySelectorAll('input[name=lang]:checked')].map(x => x.value);
+      if (!S.langs.length) { S.langs = ['eng']; document.querySelector('input[name=lang][value=eng]').checked = true; }
+      save();
+    });
+  });
+}
+function onSetting(k) {
+  if (k === 'roiMode') {
+    if (S.roiMode === 'dual') {
+      if (!S.R[0] || S.R[0].w > .5) S.R[0] = { x: .04, y: .06, w: .44, h: .88 };
+      if (!S.R[1]) S.R[1] = { x: .52, y: .06, w: .44, h: .88 };
+    }
+    slot = 0; save(); updateRoiUI(); drawOv();
+  }
+  if (k === 'desc') sortList();
+  if (k === 'minConf') recomputeFlags();
+}
+function setMode(m) {
+  S.mode = m; save();
+  document.querySelectorAll('#modeSeg button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+  armAuto();
+}
+function updateRoiUI() {
+  $('#slotWrap').style.display = (editing && S.roiMode === 'dual') ? 'inline-flex' : 'none';
+  document.querySelectorAll('#slotWrap button').forEach(b => b.classList.toggle('on', +b.dataset.slot === slot));
+  $('#btnRoi').classList.toggle('on', editing);
+  $('#btnRoi').textContent = editing ? '✔ Siap ROI' : '✎ Tetapkan ROI';
+  ov.style.pointerEvents = editing ? 'auto' : 'none';
+  ov.style.cursor = editing ? 'crosshair' : 'default';
+  ov.style.touchAction = 'none';
+}
+
+/* ================= kamera ================= */
+async function listCams(currentId) {
+  try {
+    const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+    const sel = $('#camSel');
+    sel.innerHTML = '';
+    devs.forEach((d, i) => {
+      const o = document.createElement('option');
+      o.value = d.deviceId; o.textContent = d.label || ('Kamera ' + (i + 1));
+      if (d.deviceId === currentId) o.selected = true;
+      sel.appendChild(o);
+    });
+  } catch (e) {}
+}
+async function startCam() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    toast('Kamera perlu https atau localhost (bukan http biasa).', 'bad'); return;
+  }
+  try {
+    stopCam();
+    const id = $('#camSel').value;
+    const v = S.camRes === '4k' ? { width: { ideal: 3840 }, height: { ideal: 2160 } } : { width: { ideal: 1920 }, height: { ideal: 1080 } };
+    if (id) v.deviceId = { exact: id }; else v.facingMode = { ideal: 'environment' };
+    stream = await navigator.mediaDevices.getUserMedia({ video: v, audio: false });
+    video.srcObject = stream;
+    await video.play();
+    const tr = stream.getVideoTracks()[0];
+    stage.style.aspectRatio = video.videoWidth + ' / ' + video.videoHeight;
+    await listCams(tr.getSettings().deviceId);
+    streaming = true;
+    resizeOv();
+    $('#btnCam').textContent = 'Mulakan semula';
+    toast(`Kamera aktif: ${video.videoWidth}×${video.videoHeight}`);
+    startTick();
+    requestWake();
+    armAuto();
+  } catch (e) {
+    toast('Kamera gagal: ' + (e.message || e.name), 'bad');
+  }
+}
+function stopCam() {
+  streaming = false;
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  stream = null;
+}
+async function requestWake() { try { wl = await navigator.wakeLock.request('screen'); } catch (e) {} }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && streaming) requestWake(); });
+
+let camLocked = false;
+async function toggleLock() {
+  if (!stream) { toast('Mulakan kamera dulu', 'warn'); return; }
+  const tr = stream.getVideoTracks()[0];
+  const caps = tr.getCapabilities ? tr.getCapabilities() : {};
+  const st = tr.getSettings ? tr.getSettings() : {};
+  const done = [];
+  const tryAdv = async (name, adv) => { try { await tr.applyConstraints({ advanced: [adv] }); done.push(name); } catch (e) {} };
+  if (!camLocked) {
+    if (caps.focusMode && caps.focusMode.includes('manual')) {
+      const a = { focusMode: 'manual' }; if (st.focusDistance != null) a.focusDistance = st.focusDistance;
+      await tryAdv('fokus', a);
+    }
+    if (caps.exposureMode && caps.exposureMode.includes('manual')) {
+      const a = { exposureMode: 'manual' }; if (st.exposureTime != null) a.exposureTime = st.exposureTime;
+      await tryAdv('exposure', a);
+    }
+    if (caps.whiteBalanceMode && caps.whiteBalanceMode.includes('manual')) {
+      const a = { whiteBalanceMode: 'manual' }; if (st.colorTemperature != null) a.colorTemperature = st.colorTemperature;
+      await tryAdv('white balance', a);
+    }
+    camLocked = done.length > 0;
+    toast(done.length ? 'Dikunci: ' + done.join(', ') : 'Kamera ni tak sokong kunci manual. Guna app kamera/driver vendor untuk kunci fokus.', done.length ? '' : 'warn');
+  } else {
+    await tryAdv('fokus', { focusMode: 'continuous' });
+    await tryAdv('exposure', { exposureMode: 'continuous' });
+    await tryAdv('wb', { whiteBalanceMode: 'continuous' });
+    camLocked = false; toast('Kunci dibuka');
+  }
+  $('#btnLock').classList.toggle('on', camLocked);
+  $('#btnLock').textContent = camLocked ? '🔓 Buka kunci' : '🔒 Kunci fokus';
+}
+
+/* ================= ROI ================= */
+function activeROIs() {
+  const out = [];
+  const idxs = S.roiMode === 'dual' ? [0, 1] : [0];
+  for (const i of idxs) {
+    const r = S.R[i];
+    if (r && r.w > 0.01 && r.h > 0.01) out.push({ idx: i, r, side: S.roiMode === 'dual' ? (i === 0 ? 'L' : 'R') : 'S' });
+  }
+  return out;
+}
+function resizeOv() {
+  const dpr = window.devicePixelRatio || 1;
+  ov.width = Math.max(2, Math.round(stage.clientWidth * dpr));
+  ov.height = Math.max(2, Math.round(stage.clientHeight * dpr));
+  drawOv();
+}
+new ResizeObserver(resizeOv).observe(stage);
+
+const STATE_COL = { idle: '#4f8cff', moving: '#f0a020', stable: '#38c172', hand: '#ef5350', busy: '#4f8cff', manual: '#4f8cff' };
+function drawOv() {
+  const W = ov.width, H = ov.height, dpr = window.devicePixelRatio || 1;
+  octx.clearRect(0, 0, W, H);
+  const idxs = S.roiMode === 'dual' ? [0, 1] : [0];
+  const list = idxs.filter(i => S.R[i] && S.R[i].w > 0);
+  if (list.length) {
+    octx.fillStyle = 'rgba(0,0,0,.42)';
+    octx.beginPath(); octx.rect(0, 0, W, H);
+    list.forEach(i => { const r = S.R[i]; octx.rect(r.x * W, r.y * H, r.w * W, r.h * H); });
+    octx.fill('evenodd');
+  }
+  list.forEach(i => {
+    const r = S.R[i];
+    const col = editing ? '#ffd24a' : (S.mode === 'auto' ? STATE_COL[uiState] : STATE_COL.manual);
+    octx.strokeStyle = col; octx.lineWidth = 2 * dpr;
+    octx.strokeRect(r.x * W, r.y * H, r.w * W, r.h * H);
+    octx.fillStyle = col; octx.font = `${12 * dpr}px system-ui`;
+    const lbl = S.roiMode === 'dual' ? (i === 0 ? 'KIRI' : 'KANAN') : 'ROI';
+    octx.fillText(lbl, r.x * W + 6 * dpr, r.y * H + 16 * dpr);
+    if (editing && i === slot) {
+      [[r.x, r.y], [r.x + r.w, r.y], [r.x, r.y + r.h], [r.x + r.w, r.y + r.h]].forEach(([cx, cy]) => {
+        octx.fillStyle = '#ffd24a'; octx.fillRect(cx * W - 6 * dpr, cy * H - 6 * dpr, 12 * dpr, 12 * dpr);
+      });
+    }
+  });
+  if (editing && !list.length) {
+    octx.fillStyle = '#fff'; octx.font = `${14 * dpr}px system-ui`;
+    octx.fillText('Seret untuk lukis kotak ROI', 12 * dpr, 30 * dpr);
+  }
+}
+
+let drag = null;
+function normPt(e) {
+  const rc = ov.getBoundingClientRect();
+  return { x: clamp((e.clientX - rc.left) / rc.width, 0, 1), y: clamp((e.clientY - rc.top) / rc.height, 0, 1) };
+}
+function rectFrom(a, b) {
+  return { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(a.x - b.x), h: Math.abs(a.y - b.y) };
+}
+ov.addEventListener('pointerdown', e => {
+  if (!editing) return;
+  ov.setPointerCapture(e.pointerId);
+  const p = normPt(e), r = S.R[slot];
+  const rc = ov.getBoundingClientRect();
+  const tx = 20 / rc.width, ty = 20 / rc.height;
+  drag = null;
+  if (r && r.w > 0) {
+    const cs = [[r.x, r.y, r.x + r.w, r.y + r.h], [r.x + r.w, r.y, r.x, r.y + r.h], [r.x, r.y + r.h, r.x + r.w, r.y], [r.x + r.w, r.y + r.h, r.x, r.y]];
+    for (const c of cs) {
+      if (Math.abs(p.x - c[0]) < tx && Math.abs(p.y - c[1]) < ty) { drag = { t: 'resize', anchor: { x: c[2], y: c[3] } }; break; }
+    }
+    if (!drag && p.x > r.x && p.x < r.x + r.w && p.y > r.y && p.y < r.y + r.h) drag = { t: 'move', p0: p, r0: { ...r } };
+  }
+  if (!drag) { drag = { t: 'new', anchor: p }; S.R[slot] = { x: p.x, y: p.y, w: 0, h: 0 }; }
+  drag.prev = S.R[slot] ? { ...S.R[slot] } : null;
+});
+ov.addEventListener('pointermove', e => {
+  if (!editing || !drag) return;
+  const p = normPt(e);
+  if (drag.t === 'move') {
+    const r0 = drag.r0;
+    S.R[slot] = { x: clamp(r0.x + p.x - drag.p0.x, 0, 1 - r0.w), y: clamp(r0.y + p.y - drag.p0.y, 0, 1 - r0.h), w: r0.w, h: r0.h };
+  } else S.R[slot] = rectFrom(drag.anchor, p);
+  drawOv();
+});
+function endDrag() {
+  if (!drag) return;
+  const r = S.R[slot];
+  if (!r || r.w < 0.02 || r.h < 0.02) S.R[slot] = (drag.t === 'new') ? null : drag.prev;
+  drag = null; save(); drawOv();
+}
+ov.addEventListener('pointerup', endDrag);
+ov.addEventListener('pointercancel', endDrag);
+
+/* ================= analisis imej ================= */
+const SW = 128, SH = 128;
+const sc = document.createElement('canvas'); sc.width = SW; sc.height = SH;
+const sctx = sc.getContext('2d', { willReadFrequently: true });
+function sampleROIs() {
+  const rois = activeROIs();
+  if (!rois.length) return null;
+  const vw = video.videoWidth, vh = video.videoHeight;
+  const out = new Uint8Array(SW * SH * rois.length);
+  let skin = 0, o = 0;
+  for (const { r } of rois) {
+    sctx.drawImage(video, r.x * vw, r.y * vh, r.w * vw, r.h * vh, 0, 0, SW, SH);
+    const d = sctx.getImageData(0, 0, SW, SH).data;
+    for (let p = 0; p < d.length; p += 4) {
+      const R = d[p], G = d[p + 1], B = d[p + 2];
+      out[o++] = (R * 77 + G * 150 + B * 29) >> 8;
+      if (S.skin) {
+        const cb = 128 - 0.168736 * R - 0.331264 * G + 0.5 * B;
+        const cr = 128 + 0.5 * R - 0.418688 * G - 0.081312 * B;
+        if (cb > 77 && cb < 127 && cr > 133 && cr < 173 && R > 95 && G > 40 && B > 20 && R > G && R > B) skin++;
+      }
+    }
+  }
+  return { g: out, skin: S.skin ? skin / out.length : 0 };
+}
+function meanAbsDiff(a, b) {
+  if (!a || !b || a.length !== b.length) return 255;
+  let s = 0;
+  for (let i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]);
+  return s / a.length;
+}
+function sharpness(canvas) {
+  const k = Math.min(1, 640 / canvas.width);
+  const w = Math.max(8, Math.round(canvas.width * k)), h = Math.max(8, Math.round(canvas.height * k));
+  const t = document.createElement('canvas'); t.width = w; t.height = h;
+  const x = t.getContext('2d', { willReadFrequently: true });
+  x.drawImage(canvas, 0, 0, w, h);
+  const d = x.getImageData(0, 0, w, h).data;
+  const g = new Float32Array(w * h);
+  for (let i = 0, p = 0; i < g.length; i++, p += 4) g[i] = (d[p] * 77 + d[p + 1] * 150 + d[p + 2] * 29) / 256;
+  let sum = 0, sum2 = 0, n = 0;
+  for (let y = 1; y < h - 1; y++) for (let xx = 1; xx < w - 1; xx++) {
+    const i = y * w + xx;
+    const l = g[i - 1] + g[i + 1] + g[i - w] + g[i + w] - 4 * g[i];
+    sum += l; sum2 += l * l; n++;
+  }
+  const m = sum / n;
+  return Math.round((sum2 / n - m * m) * 10) / 10;
+}
+function rotateCanvas(c, deg) {
+  const r = document.createElement('canvas');
+  const sw = deg === 90 || deg === 270;
+  r.width = sw ? c.height : c.width; r.height = sw ? c.width : c.height;
+  const x = r.getContext('2d');
+  x.translate(r.width / 2, r.height / 2);
+  x.rotate(deg * Math.PI / 180);
+  x.drawImage(c, -c.width / 2, -c.height / 2);
+  return r;
+}
+function cropROI(r) {
+  const vw = video.videoWidth, vh = video.videoHeight;
+  const sx = Math.round(r.x * vw), sy = Math.round(r.y * vh);
+  const sw = Math.max(8, Math.round(r.w * vw)), sh = Math.max(8, Math.round(r.h * vh));
+  const c = document.createElement('canvas'); c.width = sw; c.height = sh;
+  c.getContext('2d').drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
+  return S.rotate ? rotateCanvas(c, S.rotate) : c;
+}
+function makeThumb(c) {
+  const h = 180, k = h / c.height;
+  const t = document.createElement('canvas'); t.height = h; t.width = Math.max(1, Math.round(c.width * k));
+  t.getContext('2d').drawImage(c, 0, 0, t.width, t.height);
+  return t.toDataURL('image/jpeg', 0.7);
+}
+const toBlob = (c, q = 0.92) => new Promise(res => c.toBlob(res, 'image/jpeg', q));
+async function blobToCanvas(b) {
+  const bmp = await createImageBitmap(b);
+  const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+  c.getContext('2d').drawImage(bmp, 0, 0);
+  if (bmp.close) bmp.close();
+  return c;
+}
+function adaptive(g, w, h) {
+  const r = Math.max(15, Math.round(Math.min(w, h) / 25));
+  const W = w + 1, I = new Float64Array(W * (h + 1));
+  for (let y = 0; y < h; y++) {
+    let row = 0;
+    for (let x = 0; x < w; x++) { row += g[y * w + x]; I[(y + 1) * W + x + 1] = I[y * W + x + 1] + row; }
+  }
+  const out = new Uint8ClampedArray(g.length);
+  for (let y = 0; y < h; y++) {
+    const y0 = Math.max(0, y - r), y1 = Math.min(h - 1, y + r);
+    for (let x = 0; x < w; x++) {
+      const x0 = Math.max(0, x - r), x1 = Math.min(w - 1, x + r);
+      const cnt = (x1 - x0 + 1) * (y1 - y0 + 1);
+      const sum = I[(y1 + 1) * W + x1 + 1] - I[y0 * W + x1 + 1] - I[(y1 + 1) * W + x0] + I[y0 * W + x0];
+      out[y * w + x] = g[y * w + x] < (sum / cnt) * 0.88 ? 0 : 255;
+    }
+  }
+  g.set(out);
+}
+function preprocess(src) {
+  const k = S.scale || 1;
+  const w = Math.round(src.width * k), h = Math.round(src.height * k);
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  x.imageSmoothingQuality = 'high';
+  x.drawImage(src, 0, 0, w, h);
+  if (S.pre === 'raw') return c;
+  const im = x.getImageData(0, 0, w, h), d = im.data, n = w * h;
+  const g = new Uint8ClampedArray(n), hist = new Uint32Array(256);
+  for (let i = 0, p = 0; i < n; i++, p += 4) { g[i] = (d[p] * 77 + d[p + 1] * 150 + d[p + 2] * 29) >> 8; hist[g[i]]++; }
+  let lo = 0, hi = 255, acc = 0;
+  for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= n * 0.005) { lo = v; break; } }
+  acc = 0;
+  for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= n * 0.995) { hi = v; break; } }
+  if (hi - lo < 20) { lo = 0; hi = 255; }
+  const f = 255 / (hi - lo);
+  for (let i = 0; i < n; i++) g[i] = (g[i] - lo) * f;
+  if (S.pre === 'adapt') adaptive(g, w, h);
+  for (let i = 0, p = 0; i < n; i++, p += 4) { d[p] = d[p + 1] = d[p + 2] = g[i]; d[p + 3] = 255; }
+  x.putImageData(im, 0, 0);
+  return c;
+}
+
+/* ================= tick: gerakan + auto-snap ================= */
+let tickT = null, prevG = null, lastCur = null, lastSnapSample = null;
+let lastMoveT = 0, lastSnapT = 0, motionSeen = false;
+function startTick() { clearInterval(tickT); prevG = null; tickT = setInterval(tick, 120); }
+function setState(s, text) {
+  uiState = s;
+  const pill = $('#pill');
+  pill.className = s;
+  pill.textContent = text;
+}
+function armAuto() { motionSeen = false; lastMoveT = performance.now(); }
+function tick() {
+  if (!streaming || !video.videoWidth) return;
+  const now = performance.now();
+  const cur = sampleROIs();
+  if (!cur) { setState('idle', 'Tetapkan ROI dulu'); $('#metrics').textContent = ''; return; }
+  lastCur = cur;
+  const motion = prevG ? meanAbsDiff(cur.g, prevG) : 0;
+  prevG = cur.g;
+  if (motion > S.motionThr) { lastMoveT = now; motionSeen = true; }
+  const stableFor = now - lastMoveT;
+  const diffLast = lastSnapSample ? meanAbsDiff(cur.g, lastSnapSample) : 999;
+  const hand = S.skin && cur.skin > 0.12;
+  const changed = replaceTarget ? motionSeen : diffLast > S.changeThr;
+  $('#metrics').textContent = `gerak ${motion.toFixed(1)} · beza ${diffLast >= 999 ? '-' : diffLast.toFixed(1)} · stabil ${(stableFor / 1000).toFixed(1)}s` + (S.skin ? ` · kulit ${(cur.skin * 100).toFixed(0)}%` : '');
+  if (busy) { setState('busy', 'Mengambil…'); drawOv(); return; }
+  if (S.mode !== 'auto') { setState('idle', 'MANUAL · tekan Space'); drawOv(); return; }
+  if (hand) setState('hand', 'AUTO · tangan dikesan');
+  else if (motion > S.motionThr || stableFor < S.stableMs) setState('moving', 'AUTO · menunggu senyap…');
+  else if (!changed) setState('stable', 'AUTO · sedia, selak halaman');
+  else setState('stable', 'AUTO · snap!');
+  drawOv();
+  if (!hand && stableFor >= S.stableMs && changed && now - lastSnapT > 900) doSnap('auto');
+}
+
+/* ================= snap ================= */
+function beep(f = 880, d = 0.08) {
+  if (!S.sound) return;
+  try {
+    beep.ctx = beep.ctx || new (window.AudioContext || window.webkitAudioContext)();
+    const c = beep.ctx, o = c.createOscillator(), g = c.createGain();
+    o.frequency.value = f; g.gain.value = 0.12;
+    o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + d);
+  } catch (e) {}
+}
+function flash() { stage.classList.add('flash'); setTimeout(() => stage.classList.remove('flash'), 140); }
+const nextSeq = () => pages.reduce((m, p) => Math.max(m, p.seq || 0), 0) + 1;
+
+async function fillRec(p, t) {
+  p.blob = await toBlob(t.crop);
+  p.thumb = makeThumb(t.crop);
+  p.w = t.crop.width; p.h = t.crop.height;
+  p.sharp = t.sh;
+  p.text = ''; p.conf = null; p.status = 'queued'; p.edited = false; p.err = ''; p.ts = Date.now();
+}
+async function doSnap(src) {
+  if (busy) return;
+  if (!streaming) { toast('Mulakan kamera dulu', 'warn'); return; }
+  const rois = activeROIs();
+  if (!rois.length) { toast('Tetapkan ROI dulu (✎)', 'warn'); return; }
+  busy = true; setState('busy', 'Mengambil…');
+  try {
+    let best = null;
+    for (let i = 0; i < S.burst; i++) {
+      const crops = rois.map(o => cropROI(o.r));
+      const sh = crops.map(sharpness);
+      const score = sh.reduce((a, b) => a + b, 0) / sh.length;
+      if (!best || score > best.score) best = { crops, sh, score };
+      if (i < S.burst - 1) await sleep(100);
+    }
+    const targets = rois.map((o, i) => ({ side: o.side, crop: best.crops[i], sh: best.sh[i] }));
+    if (replaceTarget) {
+      const t = targets.find(x => x.side === replaceTarget.side);
+      const p = byId(replaceTarget.id);
+      replaceTarget = null; updateBanner();
+      if (!t || !p) { toast('Mod ROI tak sepadan dengan halaman yang nak diganti', 'warn'); return; }
+      await fillRec(p, t); await DB.put(p); updateCard(p); enqueue(p);
+    } else {
+      const n = targets.length, base = S.nextPage, seq = nextSeq();
+      for (const t of targets) {
+        let off = 0;
+        if (n === 2) off = S.rtl ? (t.side === 'R' ? 0 : 1) : (t.side === 'L' ? 0 : 1);
+        const p = { book: S.book, seq, side: t.side, pageNo: base + off };
+        await fillRec(p, t);
+        p.id = await DB.add(p);
+        pages.push(p); mkCard(p); enqueue(p);
+      }
+      S.nextPage = base + n; save(); $('#nextPage').value = S.nextPage;
+      sortList();
+    }
+    lastSnapSample = lastCur ? lastCur.g.slice() : null;
+    lastSnapT = performance.now(); motionSeen = false;
+    flash(); beep(880);
+    recomputeFlags(); updateStats(); refreshBooks();
+  } catch (e) {
+    console.error(e); toast('Snap gagal: ' + e.message, 'bad'); beep(220, 0.25);
+  } finally { busy = false; }
+}
+async function undoLast() {
+  if (!pages.length) return;
+  const mx = Math.max(...pages.map(p => p.seq || 0));
+  const rm = pages.filter(p => (p.seq || 0) === mx);
+  const minNo = Math.min(...rm.map(p => p.pageNo));
+  for (const p of rm) await removePage(p);
+  S.nextPage = minNo; save(); $('#nextPage').value = S.nextPage;
+  lastSnapSample = null;
+  toast('Snap terakhir dibuang');
+  updateStats();
+}
+
+/* ================= senarai halaman ================= */
+const listEl = $('#list');
+function mkCard(p) {
+  const el = document.createElement('div');
+  el.className = 'card';
+  el.innerHTML = `<div class="th"><img alt="" decoding="async"></div>
+  <div class="bd"><div class="hd">
+    <label>Hlm <input class="pn" type="number" min="0"></label><span class="bg side"></span><span class="badges"></span><span class="sp"></span>
+    <button class="ib re" title="OCR semula">⟳</button><button class="ib rp" title="Snap semula halaman ini">⤾</button><button class="ib dl danger" title="Padam">✕</button>
+  </div><textarea dir="auto" rows="5" spellcheck="false"></textarea></div>`;
+  els.set(p.id, el);
+  el.querySelector('img').addEventListener('click', () => openViewer(p));
+  el.querySelector('.pn').addEventListener('change', async e => {
+    p.pageNo = parseInt(e.target.value, 10) || 0; await DB.put(p); sortList();
+  });
+  let tm;
+  el.querySelector('textarea').addEventListener('input', e => {
+    p.text = e.target.value; p.edited = true;
+    clearTimeout(tm); tm = setTimeout(() => DB.put(p), 600);
+  });
+  el.querySelector('.re').addEventListener('click', () => enqueue(p));
+  el.querySelector('.rp').addEventListener('click', () => {
+    replaceTarget = { id: p.id, side: p.side }; updateBanner();
+    toast('Snap seterusnya akan ganti halaman ' + p.pageNo);
+  });
+  el.querySelector('.dl').addEventListener('click', async () => {
+    if (confirm('Padam halaman ' + p.pageNo + '?')) { await removePage(p); updateStats(); }
+  });
+  listEl.appendChild(el);
+  updateCard(p);
+}
+function updateCard(p) {
+  const el = els.get(p.id); if (!el) return;
+  const img = el.querySelector('img'); if (img.src !== p.thumb) img.src = p.thumb;
+  const pn = el.querySelector('.pn'); if (document.activeElement !== pn) pn.value = p.pageNo;
+  el.querySelector('.side').textContent = { S: 'tunggal', L: 'kiri', R: 'kanan' }[p.side] || p.side;
+  const ta = el.querySelector('textarea');
+  if (document.activeElement !== ta) ta.value = p.text || '';
+  let b = '';
+  if (p.status === 'queued') b = '<span class="bg">antri</span>';
+  else if (p.status === 'ocr') b = '<span class="bg acc">OCR…</span>';
+  else if (p.status === 'error') b = `<span class="bg bad" title="${(p.err || '').replace(/"/g, '')}">ralat</span>`;
+  else if (p.status === 'done') {
+    b = `<span class="bg ${p.conf >= S.minConf ? 'ok' : 'bad'}">${p.conf}%</span>`;
+    if (!(p.text || '').trim()) b += '<span class="bg warn">kosong</span>';
+  }
+  if (p.blurry) b += '<span class="bg warn">kabur?</span>';
+  el.querySelector('.badges').innerHTML = b;
+}
+function sortList() {
+  pages.sort((a, b) => (a.pageNo - b.pageNo) || ((a.seq || 0) - (b.seq || 0)) || (a.id - b.id));
+  const ord = S.desc ? [...pages].reverse() : pages;
+  ord.forEach((p, i) => {
+    const el = els.get(p.id);
+    if (el && listEl.children[i] !== el) listEl.insertBefore(el, listEl.children[i] || null);
+  });
+}
+async function removePage(p) {
+  await DB.del(p.id);
+  pages = pages.filter(x => x !== p);
+  const el = els.get(p.id); if (el) el.remove(); els.delete(p.id);
+  const qi = queue.indexOf(p.id); if (qi >= 0) queue.splice(qi, 1);
+  if (replaceTarget && replaceTarget.id === p.id) { replaceTarget = null; updateBanner(); }
+}
+function updateBanner() {
+  const b = $('#banner');
+  if (replaceTarget) {
+    const p = byId(replaceTarget.id);
+    b.style.display = 'block';
+    b.innerHTML = `Snap seterusnya akan <b>ganti</b> halaman ${p ? p.pageNo : '?'} <button id="cancelRp" style="margin-left:8px;padding:2px 8px">batal</button>`;
+    $('#cancelRp').onclick = () => { replaceTarget = null; updateBanner(); };
+  } else b.style.display = 'none';
+}
+function recomputeFlags() {
+  const sh = pages.map(p => p.sharp).filter(v => v > 0).sort((a, b) => a - b);
+  const med = sh.length ? sh[Math.floor(sh.length / 2)] : 0;
+  pages.forEach(p => {
+    const bl = sh.length >= 4 && p.sharp < med * 0.5;
+    if (!!p.blurry !== bl) { p.blurry = bl; }
+    updateCard(p);
+  });
+}
+function updateStats() {
+  const t = pages.length, d = pages.filter(p => p.status === 'done').length, e = pages.filter(p => p.status === 'error').length;
+  const cs = pages.filter(p => p.conf != null).map(p => p.conf);
+  const avg = cs.length ? Math.round(cs.reduce((a, b) => a + b, 0) / cs.length) : '-';
+  $('#stats').textContent = `${t} halaman · OCR siap ${d}${e ? ' · ralat ' + e : ''} · barisan ${queue.length + (running ? 1 : 0)} · purata ${avg}%`;
+}
+async function refreshBooks() {
+  try { $('#books').innerHTML = (await DB.books()).map(b => `<option value="${b.replace(/"/g, '&quot;')}">`).join(''); } catch (e) {}
+}
+async function loadBook() {
+  els.forEach(el => el.remove()); els.clear(); queue.length = 0;
+  pages = await DB.byBook(S.book);
+  pages.forEach(mkCard);
+  sortList();
+  if (pages.length) S.nextPage = Math.max(...pages.map(p => p.pageNo)) + 1; else S.nextPage = 1;
+  $('#nextPage').value = S.nextPage; save();
+  recomputeFlags(); updateStats();
+  pages.filter(p => p.status === 'queued' || p.status === 'ocr').forEach(enqueue);
+}
+let viewerUrl = null;
+function openViewer(p) {
+  viewerUrl = URL.createObjectURL(p.blob);
+  const v = $('#viewer'); v.querySelector('img').src = viewerUrl; v.style.display = 'flex';
+}
+$('#viewer').addEventListener('click', () => {
+  $('#viewer').style.display = 'none';
+  if (viewerUrl) URL.revokeObjectURL(viewerUrl); viewerUrl = null;
+});
+
+/* ================= OCR ================= */
+const queue = []; let running = false;
+let worker = null, workerKey = '';
+function setOcr(text, prog) {
+  $('#ocrStatus').textContent = 'OCR: ' + text;
+  if (prog != null) $('#ocrBar').style.width = Math.round(prog * 100) + '%';
+}
+function onTessLog(m) {
+  if (!m) return;
+  if (m.status === 'recognizing text') setOcr(m.userJobId ? 'membaca…' : 'membaca…', m.progress);
+  else if (/loading|initializ/.test(m.status || '')) setOcr('memuat model: ' + m.status, m.progress);
+}
+async function getWorker() {
+  const langs = S.langs.length ? S.langs : ['eng'];
+  const key = langs.join('+') + '|' + S.quality + '|' + S.psm;
+  if (worker && workerKey === key) return worker;
+  if (worker) { try { await worker.terminate(); } catch (e) {} worker = null; }
+  if (typeof Tesseract === 'undefined') throw new Error('Tesseract.js tidak termuat (offline?)');
+  const opts = { logger: onTessLog };
+  if (S.quality === 'best') { opts.langPath = 'https://cdn.jsdelivr.net/gh/tesseract-ocr/tessdata_best@main'; opts.gzip = false; }
+  setOcr('memuat model bahasa (kali pertama agak lama)…', 0);
+  const w = await Tesseract.createWorker(langs.join('+'), 1, opts);
+  await w.setParameters({ tessedit_pageseg_mode: S.psm, preserve_interword_spaces: '1' });
+  worker = w; workerKey = key;
+  return w;
+}
+async function ocrRecord(p) {
+  const img = await blobToCanvas(p.blob);
+  const proc = preprocess(img);
+  const w = await getWorker();
+  const { data } = await w.recognize(proc);
+  p.text = (data.text || '').replace(/\s+$/g, '');
+  p.conf = Math.round(data.confidence || 0);
+  p.lang = workerKey; p.status = 'done'; p.err = ''; p.edited = false;
+}
+function enqueue(p) {
+  p.status = 'queued'; updateCard(p);
+  if (!queue.includes(p.id)) queue.push(p.id);
+  updateStats(); runQueue();
+}
+async function runQueue() {
+  if (running) return;
+  running = true;
+  while (queue.length) {
+    const id = queue.shift(), p = byId(id);
+    if (!p) continue;
+    p.status = 'ocr'; updateCard(p); updateStats();
+    setOcr(`halaman ${p.pageNo}…`, 0);
+    try { await ocrRecord(p); }
+    catch (e) {
+      console.error(e); p.status = 'error'; p.err = e.message || String(e);
+      if (worker) { try { await worker.terminate(); } catch (x) {} worker = null; workerKey = ''; }
+      toast('OCR ralat: ' + p.err, 'bad');
+    }
+    try { await DB.put(p); } catch (e) {}
+    updateCard(p); updateStats();
+  }
+  running = false;
+  setOcr('sedia', 0); updateStats();
+}
+
+/* ================= export ================= */
+function sortedPages() { return [...pages].sort((a, b) => (a.pageNo - b.pageNo) || ((a.seq || 0) - (b.seq || 0))); }
+function cleanText(t) {
+  t = t.replace(/\r/g, '').replace(/([A-Za-z\u00C0-\u024F])-\n([a-z\u00C0-\u024F])/g, '$1$2');
+  return t.split(/\n\s*\n/).map(par => par.replace(/\s*\n\s*/g, ' ').replace(/[ \t]+/g, ' ').trim()).filter(Boolean).join('\n\n');
+}
+function buildTxt() {
+  return sortedPages().map(p => {
+    let t = p.text || '';
+    if (S.joinLines) t = cleanText(t);
+    return S.sepPages ? `=== Halaman ${p.pageNo} ===\n${t}` : t;
+  }).join('\n\n');
+}
+function download(name, blob) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+const safeName = () => (S.book || 'buku').replace(/[^\w\-]+/g, '_');
+const pad = n => String(n).padStart(4, '0');
+function loadScript(src) {
+  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('gagal muat ' + src)); document.head.appendChild(s); });
+}
+
+$('#btnTxt').onclick = () => { if (!pages.length) return toast('Belum ada halaman', 'warn'); download(safeName() + '.txt', new Blob([buildTxt()], { type: 'text/plain;charset=utf-8' })); };
+$('#btnJson').onclick = () => {
+  if (!pages.length) return toast('Belum ada halaman', 'warn');
+  const arr = sortedPages().map(p => ({ book: p.book, page: p.pageNo, side: p.side, text: S.joinLines ? cleanText(p.text || '') : (p.text || ''), conf: p.conf, sharpness: p.sharp, lang: p.lang || null, ts: p.ts }));
+  download(safeName() + '.json', new Blob([JSON.stringify(arr, null, 2)], { type: 'application/json' }));
+};
+$('#btnZip').onclick = async () => {
+  if (!pages.length) return toast('Belum ada halaman', 'warn');
+  try {
+    toast('Menyediakan ZIP…');
+    if (typeof JSZip === 'undefined') await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+    const z = new JSZip();
+    sortedPages().forEach(p => z.file(`p${pad(p.pageNo)}${p.side === 'S' ? '' : p.side}.jpg`, p.blob));
+    z.file('teks.txt', buildTxt());
+    download(safeName() + '_gambar.zip', await z.generateAsync({ type: 'blob' }));
+  } catch (e) { toast('ZIP gagal: ' + e.message, 'bad'); }
+};
+$('#btnCopy').onclick = async () => {
+  try { await navigator.clipboard.writeText(buildTxt()); toast('Disalin'); } catch (e) { toast('Salin gagal', 'bad'); }
+};
+$('#btnReLow').onclick = () => {
+  const l = pages.filter(p => p.status === 'done' && p.conf != null && p.conf < S.minConf);
+  l.forEach(enqueue); toast(l.length ? `${l.length} halaman diantri semula` : 'Tiada halaman conf rendah');
+};
+$('#btnReAll').onclick = () => {
+  if (!pages.length) return;
+  if (confirm('OCR semula semua halaman? Suntingan manual akan diganti.')) sortedPages().forEach(enqueue);
+};
+$('#btnWipe').onclick = async () => {
+  if (!pages.length) return;
+  if (!confirm(`Padam SEMUA ${pages.length} halaman untuk buku "${S.book}"? Tak boleh undur.`)) return;
+  for (const p of [...pages]) await removePage(p);
+  S.nextPage = 1; $('#nextPage').value = 1; save(); updateStats(); refreshBooks();
+};
+
+/* ================= event utama ================= */
+$('#btnCam').onclick = startCam;
+$('#btnLock').onclick = toggleLock;
+$('#btnSnap').onclick = () => doSnap('manual');
+$('#btnUndo').onclick = undoLast;
+$('#btnRoi').onclick = () => {
+  editing = !editing;
+  if (editing && S.roiMode === 'single' && !S.R[0]) S.R[0] = { x: .1, y: .05, w: .8, h: .9 };
+  updateRoiUI(); drawOv();
+};
+document.querySelectorAll('#modeSeg button').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+document.querySelectorAll('#slotWrap button').forEach(b => b.onclick = () => { slot = +b.dataset.slot; updateRoiUI(); drawOv(); });
+$('#book').addEventListener('change', async e => {
+  S.book = e.target.value.trim() || 'buku-1'; e.target.value = S.book; save(); await loadBook();
+});
+document.addEventListener('keydown', e => {
+  const tg = e.target.tagName;
+  if (tg === 'INPUT' || tg === 'TEXTAREA' || tg === 'SELECT') return;
+  if (e.code === 'Space') { e.preventDefault(); doSnap('manual'); }
+  else if (e.key === 'a' || e.key === 'A') setMode(S.mode === 'auto' ? 'manual' : 'auto');
+  else if (e.key === 'u' || e.key === 'U') undoLast();
+});
+
+/* ================= init ================= */
+(async function init() {
+  bindSettings();
+  $('#book').value = S.book;
+  if (S.roiMode === 'single' && !S.R[0]) S.R[0] = { x: .1, y: .05, w: .8, h: .9 };
+  setMode(S.mode); updateRoiUI(); drawOv();
+  try { await DB.open(); await loadBook(); await refreshBooks(); }
+  catch (e) { toast('IndexedDB gagal: ' + e.message, 'bad'); }
+  try { const d = await navigator.mediaDevices.enumerateDevices(); if (d.some(x => x.kind === 'videoinput')) listCams(); } catch (e) {}
+})();
+</script>
+</body>
+</html>
